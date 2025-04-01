@@ -17,4 +17,6 @@ public interface UserRepository extends JpaRepository<User, Integer> {
             nativeQuery = true)
     List<User> findByNameSurname(String name, String surname);
 
+    List<User> findByUniqueCodeIn(List<String> uniqueCode);
+
 }
