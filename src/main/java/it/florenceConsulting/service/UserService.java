@@ -1,7 +1,7 @@
 package it.florenceConsulting.service;
 
 import it.florenceConsulting.dto.UserDto;
-import org.apache.coyote.BadRequestException;
+import it.florenceConsulting.exception.BadRequestException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;

@@ -1,13 +1,12 @@
 package it.florenceConsulting.controller;
 
 import it.florenceConsulting.dto.UserDto;
+import it.florenceConsulting.exception.BadRequestException;
 import it.florenceConsulting.service.UserService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,7 +23,7 @@ public class UserController {
     @GetMapping
     public ResponseEntity<List<UserDto>> getUsers(@RequestParam(value = "name", required = false) String name,
                                                   @RequestParam(value = "surname", required = false) String surname) throws BadRequestException {
-        //log.info("getUsers");
+        log.info("UserController - getUsers");
 
         List<UserDto> userDtoList = userService.getUserByNameSurname(name, surname);
 
@@ -33,7 +32,8 @@ public class UserController {
 
     @PostMapping("/import-file")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) throws BadRequestException {
-        //log.info("getUsers");
+
+        log.info("UserController - uploadFile");
 
         userService.uploadFile(file);
 

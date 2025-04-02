@@ -1,12 +1,13 @@
 package it.florenceConsulting.service.impl;
 
 import it.florenceConsulting.entity.User;
+import it.florenceConsulting.exception.BadRequestException;
 import it.florenceConsulting.mapper.UserMapper;
 import it.florenceConsulting.repository.UserRepository;
 import it.florenceConsulting.service.UserService;
 import it.florenceConsulting.dto.UserDto;
+import it.florenceConsulting.util.Constants;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,10 +16,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static it.florenceConsulting.util.Constants.columenNumber;
+import static it.florenceConsulting.util.Constants.csvParser;
 
 @Slf4j
 @Service
@@ -43,32 +46,60 @@ public class UserServiceImpl implements UserService {
     public void uploadFile(MultipartFile file) throws BadRequestException {
 
         List<UserDto> userDtoList = new ArrayList<>();
-        String parser =";";
+        userDtoList = fileTOUserDtoList(file);
+
+        if(!userDtoList.isEmpty()) {
+            validateUserList(userDtoList);
+            saveUserList(userDtoList);
+        } else {
+            log.info("Empty file");
+        }
+
+    }
+
+    private List<UserDto> fileTOUserDtoList(MultipartFile file) throws BadRequestException {
+        List<UserDto> userDtoList;
         List<String> columns;
         List<List<String>> values;
         try(BufferedReader br = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
             String firstLine=br.readLine();
             if(firstLine==null) throw new BadRequestException("File is empty");
-            columns = Arrays.asList(firstLine.split(parser));
+            columns = Arrays.asList(firstLine.split(csvParser));
             values = br.lines()
-                    .map(line -> Arrays.asList(line.split(parser)))
+                    .map(line -> Arrays.asList(line.split(csvParser)))
                     .collect(Collectors.toList());
 
             userDtoList = convertToDto(columns, values);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
-        if(!userDtoList.isEmpty()) {
-            validateUserList(userDtoList);
-            saveUserList(userDtoList);
-        }
-
+        return userDtoList;
     }
 
-    private List<UserDto> convertToDto(List<String> columns, List<List<String>> values) {
+    private List<UserDto> convertToDto(List<String> columns, List<List<String>> values) throws BadRequestException {
+
+        validateColumns(columns);
+
+        validateRows(values);
 
         return values.stream().map(this::rowToUserDto).toList();
+    }
+
+    private void validateRows(List<List<String>> values) throws BadRequestException {
+        Optional<List<String>> notcompletedRowOpt = values.stream()
+                .filter(row-> row.size()!= columenNumber )
+                .findFirst();
+
+        if(!notcompletedRowOpt.isEmpty()) {
+            throw new BadRequestException("One or more rows have more or less columns then the expected " + columenNumber + " columns");
+        }
+    }
+
+    private void validateColumns(List<String> columns) throws BadRequestException {
+
+        if(!columns.equals(Constants.userFileColumns)) {
+            throw new BadRequestException("Wrong CSV format. Expected " + Constants.userFileColumns);
+        }
     }
 
     private UserDto rowToUserDto(List<String> row) {
@@ -97,14 +128,28 @@ public class UserServiceImpl implements UserService {
                 errorMessage += "Empty mandatory field unique_code ";
             return errorMessage;
         }).toList();
-        if(errorMessageList.isEmpty())
+        if(errorMessageList.isEmpty()) {
             throw new BadRequestException("errorMessageList");
+        }
 
-        // validation 2 - already present user
+        // validation 2 - duplicated user
         List<String> uniqueCodeList = userDtoList.stream().map(UserDto::getUniqueCode).toList();
+        List<String> uniqueCodeListDuplicated =
+                uniqueCodeList.stream()
+                        .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))
+                        .entrySet()
+                        .stream()
+                        .filter(m -> m.getValue() > 1)
+                        .map(Map.Entry::getKey)
+                        .toList();
+        if(!uniqueCodeListDuplicated.isEmpty()) {
+            throw new BadRequestException("Duplicated user with unique_code " + uniqueCodeListDuplicated + " in to the file");
+        }
+
+        // validation 3 - user already present
         List<User> userAlreadyPresent = userRepository.findByUniqueCodeIn(uniqueCodeList);
         if(!userAlreadyPresent.isEmpty()) {
-            String uniqueCodePresentList = userAlreadyPresent.stream().map(User::getUniqueCode).toString();
+            List<String> uniqueCodePresentList = userAlreadyPresent.stream().map(User::getUniqueCode).toList();
             throw new BadRequestException("User with unique_code " + uniqueCodePresentList + " already present");
         }
     }
