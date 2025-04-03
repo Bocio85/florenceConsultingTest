@@ -33,9 +33,6 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<UserDto> getUserByNameSurname(String name, String surname) throws BadRequestException {
 
-        if(name == null && surname == null)
-            throw new BadRequestException("name and surname can be not both null!");
-
         List<User> users = userRepository.findByNameSurname(name, surname);
 
         return users.stream().map(UserMapper.ISTANCE::entityToDto).toList();
