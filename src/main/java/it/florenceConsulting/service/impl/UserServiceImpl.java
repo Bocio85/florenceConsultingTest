@@ -30,6 +30,13 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserRepository userRepository;
 
+    /**
+     * Get users
+     * @param name
+     * @param surname
+     * @return a list of UserDto
+     * @throws BadRequestException
+     */
     @Override
     public List<UserDto> getUserByNameSurname(String name, String surname) throws BadRequestException {
 
@@ -39,11 +46,17 @@ public class UserServiceImpl implements UserService {
 
     }
 
+    /**
+     * Upload users by csv file
+     * @param file
+     * @throws BadRequestException
+     */
     @Override
     public void uploadFile(MultipartFile file) throws BadRequestException {
 
         List<UserDto> userDtoList = new ArrayList<>();
-        userDtoList = fileTOUserDtoList(file);
+        // convert csv to UserDto list
+        userDtoList = fileToUserDtoList(file);
 
         if(!userDtoList.isEmpty()) {
             validateUserList(userDtoList);
@@ -54,7 +67,7 @@ public class UserServiceImpl implements UserService {
 
     }
 
-    private List<UserDto> fileTOUserDtoList(MultipartFile file) throws BadRequestException {
+    private List<UserDto> fileToUserDtoList(MultipartFile file) throws BadRequestException {
         List<UserDto> userDtoList;
         List<String> columns;
         List<List<String>> values;
@@ -83,11 +96,11 @@ public class UserServiceImpl implements UserService {
     }
 
     private void validateRows(List<List<String>> values) throws BadRequestException {
-        Optional<List<String>> notcompletedRowOpt = values.stream()
+        Optional<List<String>> notCompletedRowOpt = values.stream()
                 .filter(row-> row.size()!= columenNumber )
                 .findFirst();
 
-        if(!notcompletedRowOpt.isEmpty()) {
+        if(notCompletedRowOpt.isPresent()) {
             throw new BadRequestException("One or more rows have more or less columns then the expected " + columenNumber + " columns");
         }
     }
@@ -124,9 +137,11 @@ public class UserServiceImpl implements UserService {
             if(userDto.getUniqueCode() == null || userDto.getUniqueCode().isEmpty())
                 errorMessage += "Empty mandatory field unique_code ";
             return errorMessage;
-        }).toList();
-        if(errorMessageList.isEmpty()) {
-            throw new BadRequestException("errorMessageList");
+        })
+                .filter(m -> !m.isEmpty())
+                .toList();
+        if(!errorMessageList.isEmpty()) {
+            throw new BadRequestException(""+ errorMessageList);
         }
 
         // validation 2 - duplicated user
