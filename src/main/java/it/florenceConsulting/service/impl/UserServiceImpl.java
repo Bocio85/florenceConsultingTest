@@ -127,7 +127,7 @@ public class UserServiceImpl implements UserService {
 
     private void validateUserList(List<UserDto> userDtoList) throws BadRequestException {
 
-        // validation 1 - empty mandatory fields
+        // validation 1 - check empty mandatory fields
         List<String> errorMessageList = userDtoList.stream().map(userDto -> {
             String errorMessage = "";
             if(userDto.getName() == null || userDto.getName().isEmpty())
@@ -144,7 +144,7 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException(""+ errorMessageList);
         }
 
-        // validation 2 - duplicated user
+        // validation 2 - check duplicated user in file
         List<String> uniqueCodeList = userDtoList.stream().map(UserDto::getUniqueCode).toList();
         List<String> uniqueCodeListDuplicated =
                 uniqueCodeList.stream()
@@ -158,7 +158,7 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException("Duplicated user with unique_code " + uniqueCodeListDuplicated + " in to the file");
         }
 
-        // validation 3 - user already present
+        // validation 3 - check user already present
         List<User> userAlreadyPresent = userRepository.findByUniqueCodeIn(uniqueCodeList);
         if(!userAlreadyPresent.isEmpty()) {
             List<String> uniqueCodePresentList = userAlreadyPresent.stream().map(User::getUniqueCode).toList();
